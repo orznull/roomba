@@ -1,0 +1,31 @@
+{
+  "name": "jstris-rooms",
+  "version": "1.0.0",
+  "description": "Discord bot that makes jstris rooms. for MMC.",
+  "main": "main.js",
+  "dependencies": {
+    "@msgpack/msgpack": "^2.5.1",
+    "axios": "^0.27.2",
+    "discord.js": "^12.5.3",
+    "form-data": "^4.0.0",
+    "msgpackr": "^1.8.5",
+    "request": "^2.88.2",
+    "websocket": "^1.0.34",
+    "ws": "^7.3.1",
+    "xmlhttprequest": "^1.8.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "npx nodemon main.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/orznull/JstrisRoomBot.git"
+  },
+  "author": "orz",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/orznull/JstrisRoomBot/issues"
+  },
+  "homepage": "https://github.com/orznull/JstrisRoomBot#readme"
+}
