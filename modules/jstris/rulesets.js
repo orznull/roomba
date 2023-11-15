@@ -1,4 +1,4 @@
-exports.mcdt = {
+const mcdt = {
   "t": 11,
   "p": true,
   "n": "MCDT room",
@@ -63,7 +63,7 @@ exports.mcdt = {
   "ext": 2
 };
 
-exports.default = { // Make room request
+const defaultRuleset = { // Make room request
   as: 0,
   at: [0, 0, 1, 2, 4, 4, 6, 2, 0, 10, 1],
   bset: 0,
@@ -91,4 +91,10 @@ exports.default = { // Make room request
   sl: 0,
   srv: "0",
   t: 11
+}
+
+
+export default {
+  mcdt,
+  default: defaultRuleset,
 }
