@@ -3,7 +3,9 @@ import fs from 'node:fs';
 
 let store = {};
 export const initStorage = () => {
-  store = fs.readFileSync(process.env.STORAGE_FILE_PATH);
+  try {
+    store = JSON.parse(fs.readFileSync(process.env.STORAGE_FILE_PATH));
+  } catch (e) {/* store not init */ }
 }
 
 export const getVal = (key, defaultVal) => {
