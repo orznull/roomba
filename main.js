@@ -9,6 +9,7 @@ import helpCommand from "./commands/helpCommand.js";
 import setVersion from "./commands/setVersion.js";
 import toggleHere from "./commands/toggleHere.js";
 import pingHere from "./commands/pingHere.js";
+import { initStorage } from "./modules/storage.js";
 
 export const commands = [
   createRoom,
@@ -21,11 +22,16 @@ export const commands = [
   pingHere,
 ]
 
+
+
+initStorage();
+
 const bot = new Discord.Client({ intents: ["GUILDS", "GUILD_MESSAGES", "DIRECT_MESSAGES"] });
 
 bot.on('ready', () => {
   console.log(`Logged in as ${bot.user.tag}`);
 });
+
 
 //error handle
 bot.on('error', console.error);
