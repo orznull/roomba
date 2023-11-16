@@ -6,6 +6,7 @@ a discord bot that makes rooms for tetrio and jstris
 
 Create a `.env` file, you can copy paste `.env.template` for reference.
 
+`npm i` to install packages.
 `npm start` to run the bot. Run `:help` to see all the commands, and feel free to edit them as you wish.
 ```
 [ :cr ] - 
