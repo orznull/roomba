@@ -7,6 +7,8 @@ import togglePing from "./commands/togglePing.js";
 import botInfo from "./commands/botInfo.js";
 import helpCommand from "./commands/helpCommand.js";
 import setVersion from "./commands/setVersion.js";
+import toggleHere from "./commands/toggleHere.js";
+import pingHere from "./commands/pingHere.js";
 
 export const commands = [
   createRoom,
@@ -15,6 +17,8 @@ export const commands = [
   botInfo,
   helpCommand,
   setVersion,
+  toggleHere,
+  pingHere,
 ]
 
 const bot = new Discord.Client({ intents: ["GUILDS", "GUILD_MESSAGES", "DIRECT_MESSAGES"] });
