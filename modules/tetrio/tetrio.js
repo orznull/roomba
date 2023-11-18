@@ -122,7 +122,8 @@ export const createTetrioRoom = async ({
 				// used to need to transfer ownership first, but no need anymore you can just leave.
 				// r.emit("transferownership",d.user._id);
 				r.emit("room.leave", false);
-				onPlayerJoin(true);
+				console.log(d);
+				onPlayerJoin(d?.user?.username ?? "Someone");
 				r.close();
 				if (roomAbandonedTimeout !== undefined) {
 					clearTimeout(roomAbandonedTimeout)

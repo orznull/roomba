@@ -15,7 +15,7 @@ const createRoom = (msg) => {
   var gameArgument = msg.content.split(" ")?.[1]?.toLowerCase();
 
   if (gameArgument === "io" || gameArgument === "t" || gameArgument === "teto" || gameArgument === "tetrio") {
-    msg.channel.send("Creating tetrio room...",).then((m) => {
+    msg.channel.send("Creating tetrio room...",).then((linkMsg) => {
       createTetrioRoom({
         onCreate: (url) => {
           linkMsg.edit(`${url} **(This link will close itself in 1 minute if no one joins)**`)
