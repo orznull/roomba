@@ -9,6 +9,9 @@ import helpCommand from "./commands/helpCommand.js";
 import setVersion from "./commands/setVersion.js";
 import toggleHere from "./commands/toggleHere.js";
 import pingHere from "./commands/pingHere.js";
+import findMatch from "./commands/tetrio-journey-match-lookup/findMatch.js";
+import setBracket from "./commands/tetrio-journey-match-lookup/setBracket.js";
+
 import { initStorage } from "./modules/storage.js";
 
 export const commands = [
@@ -20,6 +23,8 @@ export const commands = [
   setVersion,
   toggleHere,
   pingHere,
+  findMatch,
+  setBracket,
 ]
 
 
