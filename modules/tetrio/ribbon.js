@@ -16,8 +16,12 @@ function toArrayBuffer(buf) {
   return ab;
 }
 
-// everything below is straight from tetrio
+// stubbing out xdbg log functions here that new ribbon calls, cba to gut them out lol 
+const window = {}
+window.XDBG_PUSHLOG = () => { };
+window.XDBG_CONSIDER_COMMITLOG = () => { }
 
+// everything below is straight from tetrio
 const RIBBON_CLOSE_CODES = {
   '1000': 'ribbon closed normally',
   '1001': 'client closed ribbon',
@@ -35,7 +39,7 @@ const RIBBON_CLOSE_CODES = {
   '1015': 'TLS error'
 };
 const RIBBON_BATCH_TIMEOUT = 25;
-const RIBBON_CACHE_EVICTION_TIME = 25000;
+const RIBBON_CACHE_MAXSIZE = 4096;
 
 const RIBBON_EXTRACTED_ID_TAG = new Uint8Array([174]);
 const RIBBON_STANDARD_ID_TAG = new Uint8Array([69]);
@@ -78,16 +82,20 @@ RIBBON_EXTENSIONS.set('PONG', (extensionData) => {
 });
 
 const globalRibbonPackr = new msgpackr.Packr({
-  bundleStrings: true
+  int64AsType: 'number',
+  bundleStrings: true,
+  sequential: false,
+  useRecords: false
 });
-
 const globalRibbonUnpackr = new msgpackr.Unpackr({
-  bundleStrings: true
+  int64AsType: 'number',
+  bundleStrings: true,
+  sequential: false,
+  useRecords: false
 });
 
-
-// Ribbon - blazing-fast, msgpacked resumeable WebSockets 
-export const Ribbon = function (uri) {
+// Ribbon - blazing-fast, msgpacked resumeable WebSockets
+const Ribbon = function (uri) {
   let endpoint = uri;
   let spoolToken = undefined;
   let ws = null;
@@ -96,7 +104,6 @@ export const Ribbon = function (uri) {
   let lastSentId = 0;
   let lastReceivedId = 0;
   let lastSent = [];
-  let lastSentTimes = [];
   let alive = true;
   let closeReason = 'ribbon lost';
   let messageListeners = {};
@@ -115,24 +122,22 @@ export const Ribbon = function (uri) {
   let wasEverConnected = false;
   let incomingQueue = [];
   let switchingEndpoint = false;
-  let batchQueue = [];
-  let batchTimeout = null;
-  let cacheSize = 200;
-  let reconnecting = false;
-  let lastCacheReping = Date.now();
+  let socketblocked = true;
   let fasterPingRequirement = false;
   let pingID = 0;
   let reconnectTimeout = null;
+  let corkQueue = null; // null if not corked
 
   pingInterval = setInterval(() => {
     pingID++;
-    if (!fasterPingRequirement && (pingID % 2) !== 0) {
+    if ((!fasterPingRequirement || pingissues) && (pingID % 2) !== 0) {
       return;
     }
 
     if (!alive) {
       // we're pinging out, get our ass a new connection
       pingissues = true;
+      window.XDBG_PUSHLOG(`Ping timeout in ribbon ${id}`);
       console.warn('Ping timeout in ribbon. Abandoning current socket and obtaining a new one...');
       closeReason = 'ping timeout';
       Reconnect();
@@ -145,12 +150,6 @@ export const Ribbon = function (uri) {
           ws.send(SmartEncode('PING', null, lastReceivedId));
         }
       } catch (ex) { }
-    }
-
-    // It's a bit cheeky to do this here, but it's fine. If we already have an interval, why create another one?
-    while (lastSentTimes.length && (Date.now() - lastSentTimes[0]) >= RIBBON_CACHE_EVICTION_TIME) {
-      lastSent.shift();
-      lastSentTimes.shift();
     }
   }, 2500);
 
@@ -173,26 +172,29 @@ export const Ribbon = function (uri) {
     return merged;
   }
 
-  function SmartDecode(packet, unpackrchain = []) {
+  function SmartDecode(packet, unpackr) {
     if (packet[0] === RIBBON_EXTENSION_TAG[0]) {
       // look up this extension
       const found = RIBBON_EXTENSIONS.get(packet[1]);
       if (!found) {
         console.error(`Unknown Ribbon extension ${packet[1]}!`);
         console.error(packet);
+        window.XDBG_PUSHLOG(`Unknown Ribbon extension ${packet[1]}!`);
         throw 'Unknown extension';
       }
       return found(packet);
     } else if (packet[0] === RIBBON_STANDARD_ID_TAG[0]) {
       // simply extract
-      return UnpackInner(packet.slice(1), unpackrchain, false);
+      return UnpackInner(packet.slice(1), unpackr);
     } else if (packet[0] === RIBBON_EXTRACTED_ID_TAG[0]) {
       // extract id and msgpacked, then inject id back in
-      // these don't support sequential, hence why we try the global first!	
-      const object = UnpackInner(packet.slice(5), unpackrchain, true);
+      // these don't support sequential!
+      const object = UnpackInner(packet.slice(5), null);
       const view = new DataView(packet.buffer);
       const id = view.getUint32(1, false);
-      object.id = id;
+      if (object) {
+        object.id = id;
+      }
 
       return object;
     } else if (packet[0] === RIBBON_BATCH_TAG[0]) {
@@ -218,94 +220,80 @@ export const Ribbon = function (uri) {
         pointer += lengths[i];
       }
 
-      return { command: 'X-MUL', items: items.map(o => SmartDecode(o, unpackrchain)) };
+      return { command: 'X-MUL', items: items.map(o => SmartDecode(o, unpackr)) };
     } else {
-      // try just parsing it straight?	
-      return UnpackInner(packet, unpackrchain, false);
+      // try just parsing it straight?
+      return UnpackInner(packet, unpackr);
     }
   }
 
-
-  function UnpackInner(packet, unpackrchain, reverseOrder) {
-    unpackrchain = [...unpackrchain];
-    while (unpackrchain.length) {
-      try {
-        return (reverseOrder ? unpackrchain.shift() : unpackrchain.pop()).unpack(packet);
-      } catch (e) {
-        if (!unpackrchain.length) {
-          throw e;
-        }
-      }
-    }
+  function UnpackInner(packet, unpackr) {
+    return (unpackr || globalRibbonUnpackr).unpack(packet);
   }
 
   function Open() {
     if (ws) {
-      // Discard the old socket entirely
-      ws.onopen = () => { };
-      ws.onmessage = () => { };
-      ws.onerror = () => { };
-      ws.onclose = () => { };
       ws.close();
     }
 
     ws = new WebSocket(endpoint, spoolToken);
     incomingQueue = [];
     ws.packr = new msgpackr.Packr({
+      int64AsType: 'number',
       bundleStrings: true,
-      sequential: true
+      sequential: false,
+      useRecords: false
     });
     ws.unpackr = new msgpackr.Unpackr({
+      int64AsType: 'number',
       bundleStrings: true,
-      sequential: true, // this doesn't really do anything, we just use it so we can know if we're using a sequential unpackr
+      sequential: false,
+      useRecords: false
     });
 
-    ws.onclose = (e) => {
-      ignoreCleanness = false;
-      if (RIBBON_CLOSE_CODES[e.code]) {
-        closeReason = RIBBON_CLOSE_CODES[e.code];
-      }
-      if (closeReason === 'ribbon lost' && pingissues) {
-        closeReason = 'ping timeout';
-      }
-      if (closeReason === 'ribbon lost' && !wasEverConnected) {
-        closeReason = 'failed to connect';
-      }
-      console.log(`Ribbon ${id} closed (${closeReason})`);
-      Reconnect();
-    };
-    ws.onopen = (e) => {
+    ws.onopen = function (e) {
+      if (this.__destroyed) { return; }
+      alive = true;
       wasEverConnected = true;
+      socketblocked = true;
       if (resume) {
         console.log(`Ribbon ${id} resuming`);
-        ws.send(SmartEncode({ command: 'resume', socketid: id, resumetoken: resume }, ws.packr));
+        window.XDBG_PUSHLOG(`Ribbon ${id} resuming`);
+        this.send(SmartEncode({ command: 'resume', socketid: id, resumetoken: resume }, this.packr));
       } else {
-        ws.send(SmartEncode({ command: 'new' }, ws.packr));
+        this.send(SmartEncode({ command: 'new' }, this.packr));
       }
     };
-    ws.onmessage = (e) => {
+    ws.onmessage = function (e) {
+      if (this.__destroyed) { return; }
       try {
         var ab = toArrayBuffer(e.data);
-        const msg = SmartDecode(new Uint8Array(ab), [globalRibbonUnpackr, ws.unpackr]);
+        const msg = SmartDecode(new Uint8Array(ab), this.unpackr);
 
         if (msg.command === 'kick') {
           mayReconnect = false;
+          pingissues = false;
+          window.XDBG_PUSHLOG(`Ribbon ${id} kicked: ${JSON.stringify(msg)}`);
+          window.XDBG_CONSIDER_COMMITLOG();
         }
 
         if (msg.command === 'nope') {
           console.error(`Ribbon ${id} noped out (${msg.reason})`);
           mayReconnect = false;
+          pingissues = false;
           closeReason = msg.reason;
           Close();
         } else if (msg.command === 'hello') {
-          reconnecting = false;
+          socketblocked = false;
           id = msg.id;
           console.log(`Ribbon ${id} ${resume ? 'resumed' : 'opened'}`);
+          window.XDBG_PUSHLOG(`Ribbon ${id} ${resume ? 'resumed' : 'opened'}`);
           if (resume) {
-            ws.send(SmartEncode({ command: 'hello', packets: lastSent }, ws.packr));
+            this.send(SmartEncode({ command: 'hello', packets: lastSent }, this.packr));
           }
           resume = msg.resume;
           alive = true;
+          pingissues = false;
           msg.packets.forEach((p) => {
             HandleMessage(p);
           });
@@ -313,11 +301,10 @@ export const Ribbon = function (uri) {
             l();
           });
           saveListeners.forEach((l) => {
-            l();
+            l(closeReason);
           });
         } else if (msg.command === 'pong') {
           alive = true;
-          pingissues = false;
           pongListeners.forEach((l) => {
             l(Date.now() - lastPing);
           });
@@ -325,7 +312,6 @@ export const Ribbon = function (uri) {
             // we can evict anything lower from our to-be-sent
             while (lastSent.length && lastSent[0].id <= msg.at) {
               lastSent.shift();
-              lastSentTimes.shift();
             }
           }
         } else if (msg.command === 'X-MUL') {
@@ -337,9 +323,11 @@ export const Ribbon = function (uri) {
         }
       } catch (ex) {
         console.error('Failed to parse message', ex);
+        window.XDBG_PUSHLOG(`Ribbon ${id} failed to parse: ${ex} [${new Response(e.data).arrayBuffer().toString()}]`);
       }
     };
-    ws.onerror = (e) => {
+    ws.onerror = function (e) {
+      if (this.__destroyed) { return; }
       if (!wasEverConnected) {
         if (messageListeners['connect_error']) {
           messageListeners['connect_error'].forEach((l) => {
@@ -348,8 +336,28 @@ export const Ribbon = function (uri) {
         }
       }
       console.log(e);
+      window.XDBG_PUSHLOG(`Ribbon error ${e} - ${e.message} - ${e.code}`);
     };
-    alive = true;
+    ws.onclose = function (e) {
+      if (this.__destroyed) { return; }
+      this.__destroyed = true;
+      ws = null;
+      ignoreCleanness = false;
+      socketblocked = true;
+      if (RIBBON_CLOSE_CODES[e.code]) {
+        closeReason = RIBBON_CLOSE_CODES[e.code];
+      }
+      if (closeReason === 'ribbon lost' && pingissues) {
+        closeReason = 'ping timeout';
+      }
+      if (closeReason === 'ribbon lost' && !wasEverConnected) {
+        closeReason = 'failed to connect';
+      }
+      console.log(`Ribbon ${id} closed (${closeReason})`);
+      window.XDBG_PUSHLOG(`Ribbon ${id} closed ${e.wasClean ? 'cleanly' : 'unexpectedly'}, code ${e.code} (${RIBBON_CLOSE_CODES[e.code]} displayed as ${closeReason}), reason string ${e.reason}`);
+
+      Reconnect();
+    };
   }
 
   function HandleMessage(msg) {
@@ -362,26 +370,21 @@ export const Ribbon = function (uri) {
       return;
     }
 
-    if (messageListeners[msg.command]) {
-      messageListeners[msg.command].forEach((l) => {
-        l(msg.data);
-      });
-    }
+    FinalizeMessage(msg);
   }
 
   function EnqueueMessage(msg) {
     if (msg.id === lastReceivedId + 1) {
       // we're in order, all good!
-      if (messageListeners[msg.command]) {
-        messageListeners[msg.command].forEach((l) => {
-          l(msg.data);
-        });
-      }
-      lastReceivedId = msg.id;
+      FinalizeMessage(msg);
     } else {
       incomingQueue.push(msg);
     }
 
+    TryClearQueue();
+  }
+
+  function TryClearQueue() {
     if (incomingQueue.length) {
       // Try to go through these
       incomingQueue.sort((a, b) => {
@@ -398,112 +401,74 @@ export const Ribbon = function (uri) {
 
         // cool, let's push it
         incomingQueue.shift();
-        if (messageListeners[trackbackMessage.command]) {
-          messageListeners[trackbackMessage.command].forEach((l) => {
-            l(trackbackMessage.data);
-          });
-        }
-        lastReceivedId = trackbackMessage.id;
+        FinalizeMessage(trackbackMessage);
       }
     }
-    if (incomingQueue.length > 5200) {
+    if (incomingQueue.length > RIBBON_CACHE_MAXSIZE) {
       console.error(`Ribbon ${id} unrecoverable: ${incomingQueue.length} packets out of order`);
+      window.XDBG_PUSHLOG(`Ribbon ${id} unrecoverable: ${incomingQueue.length} packets out of order`);
       closeReason = 'too many lost packets';
       Close();
       return;
     }
   }
 
-  function Send(command, data, batched = false) {
-    const packet = { id: ++lastSentId, command, data };
-    lastSent.push(packet);
-    lastSentTimes.push(Date.now());
-    if (reconnecting) { return; }
-
-    if ((lastSentId % 100) === 0) {
-      // recalculate how large our cache should be
-      const packetsPerSecond = 1000 / ((Date.now() - lastCacheReping) / 100);
-      cacheSize = Math.max(100, Math.min(30 * packetsPerSecond, 2000));
-      lastCacheReping = Date.now();
-    }
-
-    while (lastSent.length > cacheSize) {
-      lastSent.shift();
-      lastSentTimes.shift();
-    }
-
-    while (lastSentTimes.length && (Date.now() - lastSentTimes[0]) >= RIBBON_CACHE_EVICTION_TIME) {
-      lastSent.shift();
-      lastSentTimes.shift();
-    }
-
-    if (batched) {
-      batchQueue.push(SmartEncode(packet, ws ? ws.packr : null));
-
-      if (!batchTimeout) {
-        batchTimeout = setTimeout(FlushBatch, RIBBON_BATCH_TIMEOUT);
+  function FinalizeMessage(msg) {
+    if (corkQueue === null) {
+      if (messageListeners[msg.command]) {
+        messageListeners[msg.command].forEach((l) => {
+          l(msg.data);
+        });
       }
-      return;
+      if (msg.id) {
+        lastReceivedId = msg.id;
+      }
     } else {
-      FlushBatch();
+      corkQueue.push(msg);
     }
-
-    try {
-      if (ws.readyState === 1) {
-        ws.send(SmartEncode(packet, ws.packr));
-      }
-    } catch (ex) { }
   }
 
-  function FlushBatch() {
-    if (!batchQueue.length) { return; }
-    if (reconnecting) { return; }
+  function Cork() {
+    if (corkQueue === null) {
+      corkQueue = [];
+    }
+  }
 
-    if (batchTimeout) {
-      clearTimeout(batchTimeout);
-      batchTimeout = null;
+  function Uncork(oncomplete) {
+    if (corkQueue !== null) {
+      for (const msg of corkQueue) {
+        if (messageListeners[msg.command]) {
+          messageListeners[msg.command].forEach((l) => {
+            l(msg.data);
+          });
+        }
+        if (msg.id) {
+          lastReceivedId = msg.id;
+        }
+      }
+      corkQueue = null;
+      TryClearQueue();
     }
 
-    // If our batch is only 1 long we really dont need to go through this painful process
-    if (batchQueue.length === 1) {
-      try {
-        if (ws.readyState === 1) {
-          ws.send(batchQueue[0]);
-        }
-      } catch (ex) { }
+    if (oncomplete) { oncomplete(); }
+  }
 
-      batchQueue = [];
+  function Send(command, data) {
+    const packet = { id: ++lastSentId, command, data };
+    lastSent.push(packet);
+    if (socketblocked) {
       return;
     }
 
-    // Get the total size of our payload, so we can prepare a buffer for it
-    let totalSize = batchQueue.reduce((a, c) => { return a + c.length; }, 0);
-    const buffer = new Uint8Array(1 + (batchQueue.length * 4) + 4 + totalSize);
-    const view = new DataView(buffer.buffer);
-
-    // Set the tag
-    buffer.set(RIBBON_BATCH_TAG, 0);
-
-    // Set the lengths and data blocks
-    let pointer = 0;
-
-    for (let i = 0; i < batchQueue.length; i++) {
-      // Set the length
-      view.setUint32(1 + (i * 4), batchQueue[i].length, false);
-
-      // Set the data
-      buffer.set(batchQueue[i], 1 + (batchQueue.length * 4) + 4 + pointer);
-      pointer += batchQueue[i].length;
+    while (lastSent.length > RIBBON_CACHE_MAXSIZE) {
+      lastSent.shift();
     }
 
-    // Batch ready to send!
-    try {
-      if (ws.readyState === 1) {
-        ws.send(buffer);
-      }
-    } catch (ex) { }
+    if (!ws || ws.readyState !== 1) { return; }
 
-    batchQueue = [];
+    try {
+      ws.send(SmartEncode(packet, ws.packr));
+    } catch (ex) { }
   }
 
   function Close(reason = null, silent = false) {
@@ -512,7 +477,7 @@ export const Ribbon = function (uri) {
       closeReason = reason;
     }
     if (ws) {
-      ws.onclose = () => { };
+      ws.__destroyed = true;
       try {
         if (ws.readyState === 1) {
           ws.send(SmartEncode({ command: 'die' }, ws.packr));
@@ -534,6 +499,7 @@ export const Ribbon = function (uri) {
 
   function SwitchEndpoint() {
     console.warn(`Ribbon ${id} changing endpoint (new endpoint: ${endpoint})`);
+    window.XDBG_PUSHLOG(`Ribbon ${id} changing endpoint (new endpoint: ${endpoint})`);
     ignoreCleanness = true;
     switchingEndpoint = true;
     if (ws) {
@@ -548,7 +514,11 @@ export const Ribbon = function (uri) {
   let extraPenalty = 0;
 
   function Reconnect() {
-    reconnecting = true;
+    socketblocked = true;
+    if (ws) {
+      ws.__destroyed = true;
+      ws.close();
+    }
 
     if (!switchingEndpoint) {
       if ((Date.now() - lastReconnect) > 40000) {
@@ -556,14 +526,16 @@ export const Ribbon = function (uri) {
       }
       lastReconnect = Date.now();
 
-      if (reconnectCount >= 10 || !mayReconnect) {
+      if (reconnectCount >= 20 || !mayReconnect) {
         // Stop bothering
         console.error(`Ribbon ${id} abandoned: ${mayReconnect ? 'too many reconnects' : 'may not reconnect'}`);
+        window.XDBG_PUSHLOG(`Ribbon ${id} abandoned: ${mayReconnect ? 'too many reconnects' : 'may not reconnect'}`);
         Die();
         return;
       }
 
       console.warn(`Ribbon ${id} reconnecting in ${extraPenalty + 5 + 100 * reconnectCount}ms (reconnects: ${reconnectCount + 1})`);
+      window.XDBG_PUSHLOG(`Ribbon ${id} reconnecting in ${extraPenalty + 5 + 100 * reconnectCount}ms (reconnects: ${reconnectCount + 1})`);
       resumeListeners.forEach((l) => {
         l(extraPenalty + 5 + 100 * reconnectCount);
       });
@@ -572,8 +544,15 @@ export const Ribbon = function (uri) {
     if (reconnectTimeout) { clearTimeout(reconnectTimeout); }
     reconnectTimeout = setTimeout(() => {
       reconnectTimeout = null;
+      if (!mayReconnect) {
+        console.log(`Ribbon ${id} abandoned: may not reconnect`);
+        window.XDBG_PUSHLOG(`Ribbon ${id} abandoned: may not reconnect`);
+        Die();
+        return;
+      }
       if (dead) {
         console.log(`Canceling reopen of ${id}: no longer needed`);
+        window.XDBG_PUSHLOG(`Canceling reopen of ${id}: no longer needed`);
         return;
       }
 
@@ -597,11 +576,13 @@ export const Ribbon = function (uri) {
     reconnectTimeout = null;
     if (dead) {
       console.log(`Canceling reopen of ${id}: no longer needed`);
+      window.XDBG_PUSHLOG(`Canceling reopen of ${id}: no longer needed`);
       return;
     }
 
     reconnectStartListeners.forEach((l) => { l(); });
 
+    socketblocked = true;
     Open();
     switchingEndpoint = false;
   }
@@ -609,6 +590,7 @@ export const Ribbon = function (uri) {
   function Die(silent = false) {
     if (dead) { return; }
     console.log(`Ribbon ${id} dead (${closeReason})`);
+    window.XDBG_PUSHLOG(`Ribbon ${id} dead (${closeReason})`);
     dead = true;
     mayReconnect = false;
 
@@ -619,10 +601,7 @@ export const Ribbon = function (uri) {
     }
 
     if (ws) {
-      ws.onopen = () => { };
-      ws.onmessage = () => { };
-      ws.onerror = () => { };
-      ws.onclose = () => { };
+      ws.__destroyed = true;
     }
 
     clearInterval(pingInterval);
@@ -649,6 +628,8 @@ export const Ribbon = function (uri) {
     close: Close,
     send: Send,
     emit: Send,
+    cork: Cork,
+    uncork: Uncork,
     onclose: (l) => { closeListeners.push(l); },
     onopen: (l) => { openListeners.push(l); },
     onpong: (l) => { pongListeners.push(l); },
@@ -679,3 +660,4 @@ export const Ribbon = function (uri) {
 }
 
 
+export { Ribbon };
