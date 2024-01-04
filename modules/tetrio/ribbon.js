@@ -84,14 +84,12 @@ RIBBON_EXTENSIONS.set('PONG', (extensionData) => {
 const globalRibbonPackr = new msgpackr.Packr({
   int64AsType: 'number',
   bundleStrings: true,
-  sequential: false,
-  useRecords: false
+  sequential: false
 });
 const globalRibbonUnpackr = new msgpackr.Unpackr({
   int64AsType: 'number',
   bundleStrings: true,
-  sequential: false,
-  useRecords: false
+  sequential: false
 });
 
 // Ribbon - blazing-fast, msgpacked resumeable WebSockets
@@ -130,13 +128,15 @@ const Ribbon = function (uri) {
 
   pingInterval = setInterval(() => {
     pingID++;
-    if ((!fasterPingRequirement || pingissues) && (pingID % 2) !== 0) {
+    const shouldFastPing = fasterPingRequirement && !pingissues;
+    if (!shouldFastPing && ((pingID % 2) !== 0)) {
       return;
     }
 
     if (!alive) {
       // we're pinging out, get our ass a new connection
       pingissues = true;
+      alive = true;
       window.XDBG_PUSHLOG(`Ping timeout in ribbon ${id}`);
       console.warn('Ping timeout in ribbon. Abandoning current socket and obtaining a new one...');
       closeReason = 'ping timeout';
@@ -241,19 +241,18 @@ const Ribbon = function (uri) {
     ws.packr = new msgpackr.Packr({
       int64AsType: 'number',
       bundleStrings: true,
-      sequential: false,
-      useRecords: false
+      sequential: false
     });
     ws.unpackr = new msgpackr.Unpackr({
       int64AsType: 'number',
       bundleStrings: true,
-      sequential: false,
-      useRecords: false
+      sequential: false
     });
 
     ws.onopen = function (e) {
       if (this.__destroyed) { return; }
       alive = true;
+      pingissues = false;
       wasEverConnected = true;
       socketblocked = true;
       if (resume) {
@@ -292,8 +291,6 @@ const Ribbon = function (uri) {
             this.send(SmartEncode({ command: 'hello', packets: lastSent }, this.packr));
           }
           resume = msg.resume;
-          alive = true;
-          pingissues = false;
           msg.packets.forEach((p) => {
             HandleMessage(p);
           });
@@ -304,7 +301,6 @@ const Ribbon = function (uri) {
             l(closeReason);
           });
         } else if (msg.command === 'pong') {
-          alive = true;
           pongListeners.forEach((l) => {
             l(Date.now() - lastPing);
           });
@@ -659,5 +655,4 @@ const Ribbon = function (uri) {
   };
 }
 
-
-export { Ribbon };
+export { Ribbon }

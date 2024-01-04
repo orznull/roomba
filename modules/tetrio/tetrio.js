@@ -137,8 +137,10 @@ export const createTetrioRoom = async ({
 				clearTimeout(roomAbandonedTimeout)
 			}
 		});
+
+		r.onclose(() => onError(closeReason));
 	} catch (e) {
-		onError();
+		onError(e);
 	}
 
 };
