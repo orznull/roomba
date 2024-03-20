@@ -95,7 +95,7 @@ export const createTetrioRoom = async ({
 
 		// When we're authorized, create the room.
 		r.on('authorize', () => {
-			r.emit("room.create", "private");
+			r.emit("room.create", false);
 		});
 
 		// When we get our first room update, that means we've joined the room!
