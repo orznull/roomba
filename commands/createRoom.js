@@ -1,5 +1,4 @@
 import { createJstrisRoom } from "../modules/jstris/jstris.js";
-import { createTetrioRoom } from "../modules/tetrio/tetrio.js";
 //import { createWWCRoom } from "../modules/wwc/wwc.js";
 
 const createRoomCooldowns = {};
@@ -15,26 +14,7 @@ const createRoom = (msg) => {
   var gameArgument = msg.content.split(" ")?.[1]?.toLowerCase();
 
   if (gameArgument === "io" || gameArgument === "t" || gameArgument === "teto" || gameArgument === "tetrio") {
-    msg.channel.send("Creating tetrio room...",).then((linkMsg) => {
-      createTetrioRoom({
-        onCreate: (url) => {
-          linkMsg.edit(`${url} **(This link will close itself in 1 minute if no one joins)**`)
-        },
-        onPlayerJoin: (username) => {
-          const msgChopped = linkMsg.content.substring(0, linkMsg.content.indexOf("**("))
-          if (username)
-            linkMsg.edit(`${msgChopped} (${username} is host of the room)`);
-          else
-            linkMsg.edit(msgChopped);
-        },
-        onAbandoned: () => {
-          linkMsg.edit("Nobody joined the room.");
-        },
-        onError: () => {
-          linkMsg.edit("There was an error with TETR.IO. Please try again or create the room manually.");
-        },
-      });
-    });
+    msg.channel.send("**Command Unavailable.** With TETR.IO's netcode updates in season 2, bots are extremely difficult to maintain. Roomba will return...!",);
   } else if (gameArgument === "wwc") {
     msg.channel.send("WWC's room creation API is currently broken.");
     /*
