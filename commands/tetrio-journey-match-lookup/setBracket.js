@@ -14,9 +14,8 @@ export default {
   "aliases": [';bracket'],
   "description": "(needs manage channels perm or be orz) Sets / refreshes the bracket that the match lookup is pointing at.",
   "action": async (msg) => {
-    if (msg.member.permissions.has(Permissions.FLAGS.MANAGE_CHANNELS, false) && msg.author.id != "147820747140759554" && msg.author.id != "177624776699805696")
-      return msg.channel.send("**You don't have the perms to do that.**").then((m) => {
-      });
+    if (!messageAuthorHasAdminPerms(msg))
+      return msg.channel.send("**You don't have the perms to do that.**")
     var inputId = msg.content.split(" ")[1];
     if (inputId)
       bracketID = inputId;

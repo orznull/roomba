@@ -11,6 +11,8 @@ import toggleHere from "./commands/toggleHere.js";
 import pingHere from "./commands/pingHere.js";
 import findMatch from "./commands/tetrio-journey-match-lookup/findMatch.js";
 import setBracket from "./commands/tetrio-journey-match-lookup/setBracket.js";
+import linkTetrio from "./commands/linkTetrio.js";
+import unlinkTetrio from "./commands/unlinkTetrio.js";
 
 import { initStorage } from "./modules/storage.js";
 
@@ -25,6 +27,8 @@ export const commands = [
   pingHere,
   findMatch,
   setBracket,
+  linkTetrio,
+  unlinkTetrio,
 ]
 
 
@@ -48,7 +52,7 @@ bot.on('message', msg => {
 
   for (let { command, aliases, action } of commands) {
     if (msg.content.startsWith(command)) {
-      return action(msg);
+      action(msg);
     }
     for (let alias of aliases) {
       if (msg.content.startsWith(alias)) {

@@ -2,13 +2,14 @@ import { Permissions } from "discord.js";
 
 import { getVal, setVal } from "../modules/storage.js";
 import { HERE_PING_CHANNELS_KEY } from "./pingHere.js"
+import { messageAuthorHasAdminPerms } from "../util/messageAuthorHasAdminPerms.js";
 export default {
   "command": ":togglehere",
   "aliases": [';togglehere'],
   "description": "(needs manage channels perm or be bot owner) Toggle whether :here can be used in this channel.",
   "action": function (msg) {
     var pingChannels = getVal(HERE_PING_CHANNELS_KEY, {});
-    if (!msg.member.permissions.has(Permissions.FLAGS.MANAGE_CHANNELS, true) && msg.author.id != process.env.OWNER_ID)
+    if (!messageAuthorHasAdminPerms(msg))
       return msg.channel.send("**You don't have the perms to do that.**")
 
     if (pingChannels[msg.channel.id]) {

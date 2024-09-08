@@ -1,12 +1,8 @@
 import { getVal } from "../modules/storage.js";
+import { millisToMinutesAndSeconds } from "../util/millisToMinutesAndSeconds.js";
+import { getTetrioStatsFromLinkedDiscord } from "../util/tetrioApi.js";
 
 export const PING_CHANNELS_KEY = "pingChannels";
-
-const millisToMinutesAndSeconds = (millis) => {
-  var minutes = Math.floor(millis / 60000);
-  var seconds = ((millis % 60000) / 1000).toFixed(0);
-  return minutes + ":" + (seconds < 10 ? '0' : '') + seconds;
-}
 
 const FRIENDLIES_ROLE = process.env.FRIENDLIES_ROLE_ID
 
@@ -14,7 +10,7 @@ export default {
   command: ":ping",
   aliases: [';ping'],
   description: `Usage: :ping (message) | Ping the friendlies role with the game you want to play. 30 minute cool down (by channel).`,
-  action: (msg) => {
+  action: async (msg) => {
     const pingChannels = getVal(PING_CHANNELS_KEY, {});
 
     var channelLastUsed = pingChannels[msg.channel.id]
@@ -28,7 +24,12 @@ export default {
     var message = '';
     if (msg.content.length > '!here '.length)
       message = msg.content.substring('!here '.length)
-    msg.channel.send(`<@&${FRIENDLIES_ROLE}> - ${msg.author.toString()} wants to play${message.length > 0 ? ": " + message : "!"}`);
+
+    const stats = await getTetrioStatsFromLinkedDiscord(msg.author.id) ?? ""
+    msg.channel.send(
+      `<@&${FRIENDLIES_ROLE}> - ${msg.author.toString()} wants to play${message.length > 0 ? ": " + message : "!"}\n`
+      + stats
+    );
     pingChannels[msg.channel.id] = Date.now();
   }
 }

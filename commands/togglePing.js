@@ -2,13 +2,14 @@ import { Permissions } from "discord.js";
 
 import { getVal, setVal } from "../modules/storage.js";
 import { PING_CHANNELS_KEY } from "./pingFriendlies.js"
+import { messageAuthorHasAdminPerms } from "../util/messageAuthorHasAdminPerms.js";
 export default {
   "command": ":toggleping",
   "aliases": [';toggleping'],
   "description": "(needs manage channels perm or be bot owner) Toggle whether :ping can be used in this channel.",
   "action": function (msg) {
     var pingChannels = getVal(PING_CHANNELS_KEY, {});
-    if (!msg.member.permissions.has(Permissions.FLAGS.MANAGE_CHANNELS, true) && msg.author.id != process.env.OWNER_ID)
+    if (!messageAuthorHasAdminPerms(msg))
       return msg.channel.send("**You don't have the perms to do that.**")
 
     if (pingChannels[msg.channel.id]) {
