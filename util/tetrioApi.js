@@ -34,5 +34,6 @@ export const getTetrioStatsFromLinkedDiscord = async (discordUserID) => {
   if (error) return `[**${ioUsername}**](https://ch.tetr.io/u/${ioUsername}) - ${error}`
   return `[**${ioUsername}**](https://ch.tetr.io/u/${ioUsername})\n`
     + `**TL Rating:** ${user.tr.toFixed(2)}, ${user.percentile_rank?.toUpperCase?.()} Rank, #${user.standing} \n`
-    + `**Glicko:** ${user.glicko.toFixed(2)} ± ${user.rd.toFixed(2)}\n`
+    + `**APM:** ${user.apm?.toFixed?.(2)} **PPS:** ${user.pps?.toFixed?.(2)} **VS:** ${user.vs?.toFixed?.(2)} \n`
+    + `**Glicko:** ${user.glicko?.toFixed(2)} ± ${user.rd?.toFixed(2)}\n`
 }
