@@ -9,7 +9,7 @@ export const TETRIO_USERS_KEY = "linkedTetrioUsers";
 const action = async (msg) => {
   const args = msg.content.split(" ");
 
-  const ioUsername = args[1];
+  const ioUsername = args[1]?.toLowerCase?.();
   if (!ioUsername) return msg.channel.send("missing arg, input TETR.IO username.")
 
   if (args[2] && !messageAuthorHasAdminPerms(msg)) return msg.channel.send("You don't have perms to link other's TETR.IO accounts.")
