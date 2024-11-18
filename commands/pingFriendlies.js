@@ -1,6 +1,7 @@
 import { getVal } from "../modules/storage.js";
 import { millisToMinutesAndSeconds } from "../util/millisToMinutesAndSeconds.js";
 import { getTetrioStatsFromLinkedDiscord } from "../util/tetrioApi.js";
+import { PING_BLACKLIST_KEY } from "./blacklistPing.js";
 
 export const PING_CHANNELS_KEY = "pingChannels";
 
@@ -11,6 +12,9 @@ export default {
   aliases: [';ping'],
   description: `Usage: :ping (message) | Ping the friendlies role with the game you want to play. 30 minute cool down (by channel).`,
   action: async (msg) => {
+    const blacklist = getVal(PING_BLACKLIST_KEY, []);
+    if (blacklist.includes(msg.author.id)) return msg.channel.send("You have been blacklisted from this command.");
+
     const pingChannels = getVal(PING_CHANNELS_KEY, {});
 
     var channelLastUsed = pingChannels[msg.channel.id]

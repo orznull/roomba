@@ -8,7 +8,7 @@ const action = async (msg) => {
   const args = msg.content.split(" ");
   if (args[1] && !messageAuthorHasAdminPerms(msg)) return msg.channel.send("You don't have perms to do that.");
 
-  const usersCache = getVal(TETRIO_USERS_KEY);
+  const usersCache = getVal(TETRIO_USERS_KEY, {});
 
   if (args[1] && messageAuthorHasAdminPerms(msg)) {
     try {
@@ -35,6 +35,6 @@ const action = async (msg) => {
 export default {
   command: ":unlink",
   aliases: [';unlink'],
-  description: `Usage: :link (user mention, requires admin.) | Unlink your discord account to your TETR.IO account for friendlies pings.`,
+  description: `Usage: :unlink (user mention, requires admin.) | Unlink your discord account to your TETR.IO account for friendlies pings.`,
   action,
 }

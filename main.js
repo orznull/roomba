@@ -15,6 +15,8 @@ import linkTetrio from "./commands/linkTetrio.js";
 import unlinkTetrio from "./commands/unlinkTetrio.js";
 
 import { initStorage } from "./modules/storage.js";
+import blacklistPing from "./commands/blacklistPing.js";
+import unblacklistPing from "./commands/unblacklistPing.js";
 
 export const commands = [
   createRoom,
@@ -29,6 +31,8 @@ export const commands = [
   setBracket,
   linkTetrio,
   unlinkTetrio,
+  blacklistPing,
+  unblacklistPing
 ]
 
 
