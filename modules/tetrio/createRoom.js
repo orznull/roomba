@@ -13,59 +13,6 @@ const AUTH_URL = 'https://tetr.io/api/users/authenticate';
 const SIGNATURE_URL = 'https://tetr.io/api/server/environment';
 const RIBBON_SERVERS_URL = 'https://tetr.io/api/server/ribbon';
 
-const __signature = {
-  version: "1.3.1",
-  countdown: !1,
-  novault: !1,
-  noceriad: !1,
-  norichpresence: !1,
-  noreplaydispute: !1,
-  supporter_specialthanks_goal: 200,
-  xp_multiplier: 1,
-  catalog: {
-    supporter: {
-      price: 5,
-      price_bulk: 4,
-      price_gift: 4,
-      price_gift_bulk: 4,
-      bulk_after: 3,
-      normal_price: 5,
-      normal_price_bulk: 4,
-      normal_price_gift: 4,
-      normal_price_gift_bulk: 4,
-      normal_bulk_after: 3
-    }
-  },
-  league_mm_roundtime_min: 25,
-  league_mm_roundtime_max: 50,
-  league_additional_settings: {},
-  league_season: {
-    current: "2",
-    prev: "1",
-    next: null,
-    next_at: null,
-    ranked: !0
-  },
-  zenith_duoisfree: !1,
-  zenith_additional_settings: {
-    TEMP_zenith_grace: "[0, 3.8, 3.0, 2.3, 1.7, 1.2, 0.8, 0.5, 0.5, 0.5, 0.2]"
-  },
-  domain: "tetr.io",
-  domain_hash: "bbbb17404b72eb5f9fba02d3074dbe7089b461ad",
-  ch_domain: "ch.tetr.io",
-  mode: "production",
-  commit: {
-    id: "2a619dc4",
-    time: 1730679313e3
-  },
-  branch: "master",
-  serverCycle: "a9e7f86acc1e",
-  build: {
-    id: "06407c3f399305",
-    time: 1732114259579
-  },
-  sentry_enabled: !0
-}
 
 // I'm actually unsure if this cookie needs to be set
 const COOKIE = `ceriad_exempt=1; cf_clearance=fmZJyxZs382vQThoUEHX9w8umukozhUPuu8_YTf.ZH4-1660013149-0-150`
@@ -127,7 +74,7 @@ export const createTetrioRoom = async ({
       // on open, authorize with the token and the signature.
       r.send("server.authorize", {
         token,
-        signature: __signature,
+        signature,
         // XXX: I don't actually know if this is necessary, might be able to delete.
         handling: { das: 1, arr: 0, sdf: 41, safelock: false, cancel: false, may20g: false },
         i: "",
