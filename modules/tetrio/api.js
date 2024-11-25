@@ -1,6 +1,6 @@
 import axios from "axios";
-import { TETRIO_USERS_KEY } from "../commands/linkTetrio.js";
-import { getVal } from "../modules/storage.js";
+import { TETRIO_USERS_KEY } from "../../commands/linkTetrio.js";
+import { getVal } from "../storage.js";
 
 const axiosHeaders = {
   "User-Agent":

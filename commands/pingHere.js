@@ -1,6 +1,6 @@
 import { getVal } from "../modules/storage.js";
 import { millisToMinutesAndSeconds } from "../util/millisToMinutesAndSeconds.js";
-import { getTetrioStatsFromLinkedDiscord } from "../util/tetrioApi.js";
+import { getTetrioStatsFromLinkedDiscord } from "../modules/tetrio/api.js";
 import { PING_BLACKLIST_KEY } from "./blacklistPing.js";
 
 export const HERE_PING_CHANNELS_KEY = "herePingChannels";

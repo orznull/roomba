@@ -1,6 +1,6 @@
 import { getVal, setVal } from "../modules/storage.js";
 import { Permissions } from "discord.js";
-import { fetchTetrioUserInfo } from "../util/tetrioApi.js";
+import { fetchTetrioUserInfo } from "../modules/tetrio/api.js";
 import { messageAuthorHasAdminPerms } from "../util/messageAuthorHasAdminPerms.js";
 
 export const TETRIO_USERS_KEY = "linkedTetrioUsers";
