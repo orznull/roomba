@@ -39,7 +39,7 @@ export const commands = [
 
 initStorage();
 
-const bot = new Discord.Client({ intents: ["GUILDS", "GUILD_MESSAGES", "DIRECT_MESSAGES"] });
+const bot = new Discord.Client({ intents: ["GUILDS", "GUILD_MESSAGES", "DIRECT_MESSAGES"], retryLimit: 10, restRequestTimeout: 30000 });
 
 bot.on('ready', () => {
   console.log(`Logged in as ${bot.user.tag}`);

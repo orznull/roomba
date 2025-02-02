@@ -95,7 +95,7 @@ export class Ribbon {
       const i = await new Response(t.data).arrayBuffer()
         , o = Buffer.from(i)
         , a = JSON.parse(o);
-      console.log("r", JSON.stringify(a));
+      // console.log("r", JSON.stringify(a));
 
       n = a.command ? `ribbon:${a.command}` : "ribbon:unknown",
         this._ProcessMessage(a),
